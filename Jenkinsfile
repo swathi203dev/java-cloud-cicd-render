@@ -1,34 +1,46 @@
 pipeline {
-    agent {
-        docker {
-            image 'maven:3.9.9-eclipse-temurin-17'
-            args '-v /root/.m2:/root/.m2'
-        }
-    }
+    agent any
 
     stages {
-
         stage('Checkout') {
             steps {
-                echo 'Checking out Java application'
+                echo 'Source code checked out from GitHub'
             }
         }
 
         stage('Build') {
             steps {
-                sh 'mvn clean compile'
+                sh '''
+                    docker run --rm \
+                    -v jenkins_home:/var/jenkins_home \
+                    -w "$WORKSPACE" \
+                    maven:3.9.9-eclipse-temurin-17 \
+                    mvn -B clean compile
+                '''
             }
         }
 
         stage('Test') {
             steps {
-                sh 'mvn test'
+                sh '''
+                    docker run --rm \
+                    -v jenkins_home:/var/jenkins_home \
+                    -w "$WORKSPACE" \
+                    maven:3.9.9-eclipse-temurin-17 \
+                    mvn -B test
+                '''
             }
         }
 
         stage('Package') {
             steps {
-                sh 'mvn package -DskipTests'
+                sh '''
+                    docker run --rm \
+                    -v jenkins_home:/var/jenkins_home \
+                    -w "$WORKSPACE" \
+                    maven:3.9.9-eclipse-temurin-17 \
+                    mvn -B package -DskipTests
+                '''
             }
         }
 
