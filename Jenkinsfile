@@ -1,53 +1,64 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = 'swathireddy203/swathi-java-cloud-app'
+    }
+
     stages {
+
         stage('Checkout') {
             steps {
-                echo 'Source code checked out from GitHub'
+                checkout scm
             }
         }
 
-        stage('Build') {
+        stage('Build and Test with Maven') {
             steps {
-                sh '''
-                    docker run --rm \
-                    -v jenkins_home:/var/jenkins_home \
-                    -w "$WORKSPACE" \
-                    maven:3.9.9-eclipse-temurin-17 \
-                    mvn -B clean compile
-                '''
+                sh 'docker build --platform linux/amd64 -t ${IMAGE_NAME}:${BUILD_NUMBER} -t ${IMAGE_NAME}:latest .'
             }
         }
 
-        stage('Test') {
+        stage('Publish to Docker Hub') {
             steps {
-                sh '''
-                    docker run --rm \
-                    -v jenkins_home:/var/jenkins_home \
-                    -w "$WORKSPACE" \
-                    maven:3.9.9-eclipse-temurin-17 \
-                    mvn -B test
-                '''
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DOCKER_TOKEN" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                        docker push ${IMAGE_NAME}:latest
+                        docker logout
+                    '''
+                }
             }
         }
 
-        stage('Package') {
+        stage('Deploy to Render') {
             steps {
-                sh '''
-                    docker run --rm \
-                    -v jenkins_home:/var/jenkins_home \
-                    -w "$WORKSPACE" \
-                    maven:3.9.9-eclipse-temurin-17 \
-                    mvn -B package -DskipTests
-                '''
+                withCredentials([
+                    string(
+                        credentialsId: 'render-deploy-hook',
+                        variable: 'RENDER_HOOK'
+                    )
+                ]) {
+                    sh 'curl -fsS -X POST "$RENDER_HOOK"'
+                }
             }
         }
+    }
 
-        stage('Success') {
-            steps {
-                echo 'Java application built successfully!'
-            }
+    post {
+        success {
+            echo 'SUCCESS: Application published and Render deployment triggered!'
+        }
+
+        failure {
+            echo 'FAILED: Check the Jenkins Console Output.'
         }
     }
 }
