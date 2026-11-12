@@ -37,7 +37,7 @@ public class HomeController {
                         <p>Automated using Jenkins CI/CD</p>
                         <p>Published through Docker Hub</p>
                         <p>Deployed on Render</p>
-                        <h3>Version 1.0 - Deployment Successful!</h3>
+                        <h3>Version 2.0 - Deployment Successful!</h3>
                     </div>
                 </body>
                 </html>
